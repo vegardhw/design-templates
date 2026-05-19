@@ -1,0 +1,27 @@
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+build/
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Logs
+*.log
+npm-debug.log*
+
+# Editor / OS
+.DS_Store
+Thumbs.db
+*.swp
+*.swo
+
+# TypeScript
+*.tsbuildinfo
+
+# Claude Code local settings (keep mcp.json if shared, but not local overrides)
+.claude/settings.local.json
