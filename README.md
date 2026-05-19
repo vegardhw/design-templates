@@ -42,12 +42,25 @@ Themes are applied by setting `document.documentElement.dataset.theme = "<name>"
 | Name | Description |
 |------|-------------|
 | `northern-lights` | Aurora greens and blues on a near-white / deep-navy base |
+| `amber-minimal` | Variants of orange on a dark grey / black base |
 
 ### Adding a theme
 
 1. Create `src/styles/themes/<id>.css` with variable overrides.
 2. Add `@import "./themes/<id>.css"` in `src/styles/theme.css`.
 3. Add an entry to the `themes` array in `src/lib/themes.ts`.
+
+## Exporting to a new project
+
+Use `export-theme.sh` to package a single theme's files into a ready-to-copy archive:
+
+```bash
+./export-theme.sh                  # interactive menu
+./export-theme.sh northern-lights  # by name
+./export-theme.sh 1                # by number
+```
+
+The archive contains only the files needed for that theme (`src/styles/`, `src/components/ui/`, `src/lib/`, `agent-context.md`) with `theme.css` and `themes.ts` already trimmed to that one theme. See `INSTRUCTIONS.md` for how to wire it into the target project after extracting.
 
 ## Scripts
 
@@ -56,3 +69,4 @@ Themes are applied by setting `document.documentElement.dataset.theme = "<name>"
 | `npm run dev` | Start dev server |
 | `npm run build` | Type-check and build for production |
 | `npm run preview` | Preview the production build |
+| `./export-theme.sh [theme]` | Package a theme into a `.tar.gz` archive |

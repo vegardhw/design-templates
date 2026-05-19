@@ -25,6 +25,22 @@ Look at the theme showcase and decide which theme to use. Available themes are r
 
 ### Step 2 — Copy files into the target project
 
+**Recommended: use the export script**
+
+```bash
+./export-theme.sh              # interactive menu — lists all available themes
+./export-theme.sh <name>       # e.g. ./export-theme.sh northern-lights
+./export-theme.sh <number>     # e.g. ./export-theme.sh 1
+```
+
+This produces `design-system-<theme>.tar.gz` containing the exact file set below, with `theme.css` and `themes.ts` already trimmed to the chosen theme. Extract it into the target project root and skip to Step 4.
+
+```bash
+tar -xzf design-system-<theme>.tar.gz --strip-components=1 -C /path/to/target
+```
+
+**Alternative: copy manually**
+
 Copy these files from `design-templates`, preserving directory structure:
 
 ```
@@ -47,7 +63,7 @@ src/
     themes.ts                          ← copy if you want applyDarkMode(); otherwise optional
 ```
 
-### Step 3 — Trim `theme.css` to one theme
+### Step 3 — Trim `theme.css` to one theme *(manual copy only — script handles this automatically)*
 
 In the copied `theme.css`, remove all `@import` lines for themes you are not using. Keep only the one you chose:
 
