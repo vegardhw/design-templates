@@ -12,7 +12,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 THEMES_DIR="$SCRIPT_DIR/src/styles/themes"
-DEFAULT_THEME="northern-lights"
+DEFAULT_THEME="default"
 
 # ── Discover available themes ─────────────────────────────────────────────────
 mapfile -t THEME_FILES < <(find "$THEMES_DIR" -maxdepth 1 -name "*.css" | sort)

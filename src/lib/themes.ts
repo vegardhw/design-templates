@@ -12,6 +12,11 @@ export interface ThemeDefinition {
    ──────────────────────────────────────────────────────────────────────────── */
 export const themes: ThemeDefinition[] = [
   {
+    name: "default",
+    label: "Default",
+    description: "Clean light/dark base theme",
+  },
+  {
     name: "northern-lights",
     label: "Northern Lights",
     description: "Aurora greens and blues on a near-white / deep-navy base",

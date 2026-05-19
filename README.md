@@ -40,6 +40,7 @@ src/
 
 | Name | Description |
 |------|-------------|
+| `default` | Clean light/dark base theme |
 | `northern-lights` | Aurora greens and blues on a near-white / deep-navy base |
 | `amber-minimal` | Variants of orange on a dark grey / black base |
 
@@ -64,6 +65,30 @@ document.documentElement.dataset.theme = "northern-lights";
 2. Add `@import "./themes/<name>.css"` in `src/styles/theme.css`.
 3. Add an entry to the `themes` array in `src/lib/themes.ts`.
 
+### Adding a theme to an app that already has an older export
+
+If a project was set up from an earlier export that is missing a theme, apply the three changes manually — no need to re-run the full export.
+
+**1. Copy the CSS file** into the target app:
+
+```
+src/styles/themes/<name>.css
+```
+
+**2. Register the import** in the target app's `src/styles/theme.css`:
+
+```css
+@import "./themes/<name>.css";
+```
+
+**3. Add the entry** to the target app's `src/lib/themes.ts`:
+
+```ts
+{ name: "<name>", label: "<Label>", description: "…" },
+```
+
+Place it first in the array if you want it to be the initial active theme (the preview page uses `themes[0].name` as its default state).
+
 ### Dark mode
 
 Dark mode is toggled by adding the `dark` class to `<html>`. Use `applyDarkMode(true/false)` or toggle the class directly. All theme files already define dark overrides for every token under `[data-theme="..."].dark`.
@@ -76,7 +101,7 @@ Dark mode is toggled by adding the `dark` class to `<html>`. Use `applyDarkMode(
 ./export-theme.sh
 ```
 
-This produces `design-system.tar.gz`. The default theme applied on first load is `northern-lights` (hardcoded in the script via `DEFAULT_THEME`). Edit that variable before running if you want a different default.
+This produces `design-system.tar.gz`. The default theme applied on first load is `default` (hardcoded in the script via `DEFAULT_THEME`). Edit that variable before running if you want a different default.
 
 ### Extracting and wiring up
 
@@ -123,7 +148,7 @@ import "@/styles/theme.css";
 ```tsx
 import { applyTheme, applyDarkMode } from "@/lib/themes";
 
-applyTheme("northern-lights");
+applyTheme("default");
 applyDarkMode(false);
 ```
 
