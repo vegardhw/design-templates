@@ -5,6 +5,9 @@ node_modules/
 dist/
 build/
 
+# Compressed files
+*.tar.gz
+
 # Environment variables
 .env
 .env.local

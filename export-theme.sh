@@ -1,17 +1,18 @@
 #!/usr/bin/env bash
-# Packages the design-system files for a single theme into a tar.gz archive
-# ready to drop into a new project.
+# Packages the full design-system (all themes, all components) into a tar.gz
+# archive ready to drop into a new project.
 #
 # Usage:
-#   ./export-theme.sh [<theme-name-or-number>]
+#   ./export-theme.sh
 #
-# If no argument is given, an interactive list is shown.
-# Archive contents follow the workflow in INSTRUCTIONS.md §"Migrating one theme".
+# The archive includes every theme found in src/styles/themes/.
+# The default theme applied on first load is "northern-lights".
 
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 THEMES_DIR="$SCRIPT_DIR/src/styles/themes"
+DEFAULT_THEME="northern-lights"
 
 # ── Discover available themes ─────────────────────────────────────────────────
 mapfile -t THEME_FILES < <(find "$THEMES_DIR" -maxdepth 1 -name "*.css" | sort)
@@ -26,127 +27,79 @@ for f in "${THEME_FILES[@]}"; do
   THEME_NAMES+=("$(basename "$f" .css)")
 done
 
-# ── Resolve theme from argument or interactive menu ───────────────────────────
-CHOSEN=""
-
-if [[ $# -ge 1 ]]; then
-  ARG="$1"
-  if [[ "$ARG" =~ ^[0-9]+$ ]]; then
-    IDX=$(( ARG - 1 ))
-    if [[ $IDX -lt 0 || $IDX -ge ${#THEME_NAMES[@]} ]]; then
-      echo "Invalid theme number: $ARG (valid: 1–${#THEME_NAMES[@]})" >&2
-      exit 1
-    fi
-    CHOSEN="${THEME_NAMES[$IDX]}"
-  else
-    for n in "${THEME_NAMES[@]}"; do
-      [[ "$n" == "$ARG" ]] && CHOSEN="$n" && break
-    done
-    if [[ -z "$CHOSEN" ]]; then
-      echo "Unknown theme: '$ARG'" >&2
-      printf "Available: %s\n" "${THEME_NAMES[*]}" >&2
-      exit 1
-    fi
-  fi
-else
-  echo "Available themes:"
-  for i in "${!THEME_NAMES[@]}"; do
-    printf "  %d) %s\n" $(( i + 1 )) "${THEME_NAMES[$i]}"
-  done
-  echo
-  while true; do
-    read -rp "Enter theme number [1–${#THEME_NAMES[@]}]: " PICK
-    if [[ "$PICK" =~ ^[0-9]+$ ]] && (( PICK >= 1 && PICK <= ${#THEME_NAMES[@]} )); then
-      CHOSEN="${THEME_NAMES[$(( PICK - 1 ))]}"
-      break
-    fi
-    echo "Please enter a number between 1 and ${#THEME_NAMES[@]}."
-  done
-fi
-
-echo "Exporting theme: $CHOSEN"
+echo "Exporting design system with ${#THEME_NAMES[@]} theme(s): ${THEME_NAMES[*]}"
+echo "Default theme: $DEFAULT_THEME"
 
 # ── Assemble files in a temp directory ───────────────────────────────────────
 WORKDIR="$(mktemp -d)"
 trap 'rm -rf "$WORKDIR"' EXIT
 
-ROOT="$WORKDIR/design-system-$CHOSEN"
+ROOT="$WORKDIR/design-system"
 
-# Directories that mirror the target project layout
 mkdir -p \
   "$ROOT/src/styles/themes" \
   "$ROOT/src/components/ui" \
+  "$ROOT/src/hooks" \
   "$ROOT/src/lib"
 
-# 1. Theme CSS (only the chosen theme)
-cp "$THEMES_DIR/$CHOSEN.css" "$ROOT/src/styles/themes/"
+# 1. All theme CSS files
+for f in "${THEME_FILES[@]}"; do
+  cp "$f" "$ROOT/src/styles/themes/"
+done
 
-# 2. theme.css — strip all @import "./themes/..." lines, then insert chosen only
-python3 - "$SCRIPT_DIR/src/styles/theme.css" \
-          "$ROOT/src/styles/theme.css" \
-          "$CHOSEN" <<'PYEOF'
-import sys, re
-
-src, dst, chosen = sys.argv[1], sys.argv[2], sys.argv[3]
-with open(src) as f:
-    content = f.read()
-
-# Remove every @import "./themes/..." line
-content = re.sub(r'@import "./themes/[^"]+\.css";\n', '', content)
-
-# Re-insert import for chosen theme after the themes comment block
-insert = f'@import "./themes/{chosen}.css";\n'
-content = re.sub(r'(\/\* ─+ Themes ─+[\s\S]*?\*\/\n)', r'\1' + insert, content, count=1)
-
-with open(dst, 'w') as f:
-    f.write(content)
-PYEOF
+# 2. theme.css — copy as-is (already imports all themes)
+cp "$SCRIPT_DIR/src/styles/theme.css" "$ROOT/src/styles/theme.css"
 
 # 3. shadcn/ui component files
 cp "$SCRIPT_DIR"/src/components/ui/*.tsx "$ROOT/src/components/ui/"
 
-# 4. lib/utils.ts — always needed (cn helper)
+# 3b. custom components (if any)
+if compgen -G "$SCRIPT_DIR/src/components/ui/custom/*.tsx" > /dev/null 2>&1; then
+  mkdir -p "$ROOT/src/components/ui/custom"
+  cp "$SCRIPT_DIR"/src/components/ui/custom/*.tsx "$ROOT/src/components/ui/custom/"
+fi
+
+# 3c. hooks (e.g. use-mobile, required by sidebar)
+if compgen -G "$SCRIPT_DIR/src/hooks/*.tsx" > /dev/null 2>&1; then
+  cp "$SCRIPT_DIR"/src/hooks/*.tsx "$ROOT/src/hooks/"
+fi
+
+# 4. lib/utils.ts — cn helper
 cp "$SCRIPT_DIR/src/lib/utils.ts" "$ROOT/src/lib/"
 
-# 5. lib/themes.ts — trimmed to only the chosen theme entry
-python3 - "$SCRIPT_DIR/src/lib/themes.ts" \
-          "$ROOT/src/lib/themes.ts" \
-          "$CHOSEN" <<'PYEOF'
+# 5. lib/themes.ts — all themes, unchanged
+cp "$SCRIPT_DIR/src/lib/themes.ts" "$ROOT/src/lib/"
+
+# 6. Patch themes.ts to set the default theme
+python3 - "$ROOT/src/lib/themes.ts" "$DEFAULT_THEME" <<'PYEOF'
 import sys, re
 
-src, dst, chosen = sys.argv[1], sys.argv[2], sys.argv[3]
-with open(src) as f:
+path, default_theme = sys.argv[1], sys.argv[2]
+with open(path) as f:
     content = f.read()
 
-match = re.search(
-    r'\{\s*\n\s*name:\s*"' + re.escape(chosen) + r'"[\s\S]*?\}',
-    content
-)
-if match:
-    entry = match.group(0)
-    content = re.sub(
-        r'(export const themes: ThemeDefinition\[\] = \[)[\s\S]*?(\];)',
-        r'\1\n  ' + entry + r',\n\2',
-        content
-    )
-else:
-    print(f"Warning: theme '{chosen}' not found in themes.ts — leaving array unchanged",
-          file=sys.stderr)
+# Remove any existing defaultTheme export
+content = re.sub(r'\nexport const defaultTheme.*\n', '\n', content)
 
-with open(dst, 'w') as f:
+# Append defaultTheme export before the last line (or at end)
+content = content.rstrip('\n') + f'\n\nexport const defaultTheme = "{default_theme}";\n'
+
+with open(path, 'w') as f:
     f.write(content)
 PYEOF
 
-# 6. agent-context.md (Step 5 of INSTRUCTIONS.md)
+# 7. agent-context.md (usage instructions, if present)
 [[ -f "$SCRIPT_DIR/agent-context.md" ]] && cp "$SCRIPT_DIR/agent-context.md" "$ROOT/"
 
 # ── Compress ──────────────────────────────────────────────────────────────────
-OUTPUT="$SCRIPT_DIR/design-system-${CHOSEN}.tar.gz"
-tar -czf "$OUTPUT" -C "$WORKDIR" "design-system-$CHOSEN"
+OUTPUT="$SCRIPT_DIR/design-system.tar.gz"
+tar -czf "$OUTPUT" -C "$WORKDIR" "design-system"
 
+echo
 echo "Created: $OUTPUT"
 echo
-echo "Extract with:"
-echo "  tar -xzf design-system-${CHOSEN}.tar.gz"
+echo "Contents:"
+tar -tzf "$OUTPUT" | sed 's/^/  /'
 echo
-echo "Then follow INSTRUCTIONS.md §'Migrating one theme' (Steps 4–5) to wire it up."
+echo "Extract with:"
+echo "  tar -xzf design-system.tar.gz"
